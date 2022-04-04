@@ -4,7 +4,7 @@ const {CleanWebpackPlugin} = require('clean-webpack-plugin')
 const CopyWebPackPlugin = require('copy-webpack-plugin')
 const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
-const TerserWebpackPlugin = require('terser-webpack-plugin')
+const TerserWebpackPlugin = require('terser-webpack-plugin') //minify js
 
 const isDev = process.env.NODE_ENV === 'development' //установил cross-env для того чтобы NODE_ENV не ставить вручную и добавили в скрипты (dev,build..)
 const isProd = !isDev
@@ -36,19 +36,31 @@ const cssLoaders = (extra) => {
     }
     return loaders
 } // для минификации и не дублирования кода
+
+const babelOptions = (extra) => {
+    const options = {
+          presets: ['@babel/preset-env'],
+          plugins: ['@babel/plugin-transform-runtime']
+      }
+      if(extra) {
+          options.presets.push(extra)
+      }
+      return options
+} //для минификации и не дублирования кода
  
 module.exports = {
     context: path.resolve(__dirname, 'src'),
     mode: 'development',
     entry: {
-        main: './index.js'
+        main: './index.jsx',
+        doc: './doc.tsx'
     },
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: fileName('js') //имя берется из entry + hash
     },
     resolve: {
-        extensions: ['.js', '.json'], //можно в проекте import файлы не указывая .js .json...
+        extensions: ['.js', '.json'], //можно в проекте import файлы не указывая .js .json... т.е. говорим какие расширения вебпаку понимать по умолчанию
         alias: {
             '@assets': path.resolve(__dirname, 'src/assets'), //в импорт можно использовать alias вместо ../../src
         }
@@ -57,6 +69,7 @@ module.exports = {
     devServer: {
         port: 8080 //режим ~live server
     },
+    devtool: isDev ? 'source-map' : false,
     module: {
         rules: [
             {
@@ -79,15 +92,25 @@ module.exports = {
                 test: /\.m?js$/,
                 exclude: /node_modules/,
                 use: {
+                  loader: 'babel-loader',
+                  options: babelOptions()
+                }
+              },
+              {
+                test: /\.(ts|js)x?$/,
+                exclude: /node_modules/,
+                use: {
                   loader: "babel-loader",
                   options: {
-                    presets: ['@babel/preset-env'],
-                    plugins: [
-                        ["@babel/plugin-transform-runtime"]
-                    ]
-                  }
-                }
-              }
+                    presets: [
+                      "@babel/preset-env",
+                      "@babel/preset-react",
+                      "@babel/preset-typescript",
+                    ],
+                    plugins: ['@babel/plugin-transform-runtime']
+                  },
+                },
+              },
         ]
     },
     plugins: [
@@ -103,7 +126,7 @@ module.exports = {
                     to: path.resolve(__dirname, 'dist'),
                 }
             ]
-        }), // для того чтобы постоянно не перекидывать файл в напр.dist можно указать, что скопировать и куда
+        }), // для того чтобы постоянно не перекидывать статический файл в напр.dist можно указать, что скопировать и куда
         new MiniCssExtractPlugin({
             filename: fileName('css')
         }), //для создания отдельного файла css (вместо style-loader)
